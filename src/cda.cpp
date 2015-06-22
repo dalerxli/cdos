@@ -166,6 +166,7 @@ arma::cx_mat iterate_field(const arma::mat& R,
 
   // tmp variables
   const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
+  const arma::cx_double i = arma::cx_double(1,0);
   arma::cx_mat Gjk = arma::cx_mat(3,3);
   double rjk;
   arma::mat rk_to_rj = arma::mat(1,3);
@@ -173,13 +174,16 @@ arma::cx_mat iterate_field(const arma::mat& R,
   arma::mat rjkrjk   = arma::mat(3,3);  
   int ll=0, jj=0, kk=0, iter=0;
   double err=1e10;
-  arma::colvec cext(Nangle), tmp=cext; //extinction for convergence 
+
+  arma::colvec cext(NAngles), tmp=cext; // store extinction for convergence test
   // starting with the first Born approximation
   arma::cx_mat E = E0, P = E0; 
   P = polarization(E0, DiagBlocks);
 
   while(iter < Niter && err < tol){
     // iterate over pairs of dipoles j-k
+    E = E0; // starting point: incident field
+    // now, add all dipole fields with previous P source
     for(jj=0; jj<N; jj++)
       {
 	for(kk=jj+1; kk<N; kk++)
@@ -195,8 +199,7 @@ arma::cx_mat iterate_field(const arma::mat& R,
 	  
 	    // update E = G P
 	    // where P is from previous iteration
-	    E = E0;
-	    for(ll=0; ll<Nangles; ll++){
+	    for(ll=0; ll<NAngles; ll++){
 	      // field of dipole kk evaluated at jj
 	      E.submat(jj*3, ll, jj*3+2, ll) += Gjk * P.submat(kk*3, ll, kk*3+2, ll);
 	      // field of dipole jj evaluated at kk
@@ -255,6 +258,58 @@ arma::colvec extinction(const double kn, const arma::cx_mat& P,
 
 }
 
+arma::cx_mat interaction_matrix(const arma::mat& R, const double kn,
+				const arma::cx_mat& DiagBlocks, 
+				const bool full) {
+  
+  const int N = R.n_rows;
+  arma::cx_mat A = arma::eye<arma::cx_mat>( 3*N, 3*N );
+
+  // constants
+  const arma::cx_double i = arma::cx_double(0,1);
+  const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
+
+  // temporary vars
+
+  int jj=0, kk=0;
+  arma::mat rk_to_rj = arma::mat(1,3), rjkhat = arma::mat(1,3) , 
+            rjkrjk = arma::mat(3,3);
+  
+  double rjk;
+  arma::cx_mat Ajk = arma::cx_mat(3,3), alphajj = Ajk, alphakk=Ajk;
+  
+  // nested for loop over N dipoles
+  for(jj=0; jj<N; jj++)
+    {
+      alphajj =  DiagBlocks.submat(jj*3, 0, jj*3+2, 2);
+      
+      for(kk=jj+1; kk<N; kk++)
+	{
+	  alphakk =  DiagBlocks.submat(kk*3, 0, kk*3+2, 2);
+
+	  rk_to_rj = R.row(jj) - R.row(kk) ;
+	  rjk = norm(rk_to_rj, 2);
+	  rjkhat = rk_to_rj / rjk;
+	  rjkrjk =  rjkhat.st() * rjkhat;
+	  if(full) {
+	    Ajk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +		\
+					      (i*kn*rjk - arma::cx_double(1,0)) / \
+					  (rjk*rjk) * (3*rjkrjk - I3)) ;
+	    
+	  } else {	      // no retardation
+	    Ajk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
+	  }
+	  // assign block 
+	  A.submat(jj*3,kk*3,jj*3+2,kk*3+2) = Ajk * alphakk;
+	  // symmetric block 
+	  A.submat(kk*3,jj*3,kk*3+2,jj*3+2) = Ajk.st() * alphajj;
+
+	} // end kk
+    } // end jj
+  
+  return(A);
+}
+
 
 RCPP_MODULE(cda){
        Rcpp::function( "cg_solve", &cg_solve, 
@@ -267,6 +322,10 @@ RCPP_MODULE(cda){
 	 "Calculate the extinction cross-section for multiple incident angles" ) ;
        Rcpp::function( "absorption", &absorption, 
          "Calculate the absorption cross-section for multiple incident angles" ) ;
+
+       Rcpp::function( "iterate_field", &iterate_field, 
+		       "Order-of-scattering solution for the fields" ) ;
+
        Rcpp::function( "interaction_matrix", &interaction_matrix, 
 		       "Construct the full interaction matrix" ) ;
        Rcpp::function( "polarization", &polarization, 
