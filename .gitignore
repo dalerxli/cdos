@@ -1,0 +1,15 @@
+*.png
+*.html
+.DS_Store
+.Rhistory
+src/*.o
+src/*.so
+inst/publis
+inst/develop
+.Rproj.user
+
+*.Rproj
+
+src/cda.o-e11dd6ad
+
+vignettes/theory_cache/
