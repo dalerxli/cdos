@@ -87,61 +87,6 @@ arma::colvec averaging(const arma::mat& R, const arma::cx_mat& A,
   } 
 
 
-arma::cx_vec iterate_field(const arma::mat& R, 
-			   const double kn,
-			   const arma::cx_vec& E0, 
-			   const arma::cx_mat& DiagBlocks){
-
-  arma::cx_vec E = E0;  
-  const int N = R.n_rows;
-  const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
-  arma::cx_mat Ajk = arma::cx_mat(3,3), alphajj = Ajk, alphakk = Ajk;
-  int jj=0, kk=0;
-  arma::mat rk_to_rj = arma::mat(1,3), rjkhat = arma::mat(1,3) , 
-            rjkrjk = arma::mat(3,3);  
-  double rjk;
-
-  
-  // nested for loop over N dipoles
-  // find distance rj-rk
-  // evaluate field of dipole j on k
-  // and vice-versa (reciprocity -> transpose)
-  // for each dipole, find its alpha
-  // multiply by previous E -> new P
-  // propagate with Gjk -> new partial field at k
-  // repeat for all k!=j
-  // but, because of reciprocity, Gkj=Gjk^t
-  // so we do k>j, and update both Ejk and Ekj at once
-
-  for(jj=0; jj<N; jj++)
-    {
-      alphajj =  DiagBlocks.submat(jj*3, 0, jj*3+2, 2);
-      
-      for(kk=jj+1; kk<N; kk++)
-	{	 
-	  alphakk =  DiagBlocks.submat(kk*3, 0, kk*3+2, 2);
-
-	  rk_to_rj = R.row(jj) - R.row(kk) ;
-	  rjk = norm(rk_to_rj, 2);
-	  rjkhat = rk_to_rj / rjk;
-	  rjkrjk =  rjkhat.st() * rjkhat;
-	  Ajk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
-		 (i*kn*rjk - arma::cx_double(1,0)) /     
-		 (rjk*rjk) * (3*rjkrjk - I3)) ;
-
-	  // update E = G P = G (alpha E0) 
-	  // where E0 is previous iteration
-	  //
-	  // field of dipole kk evaluated at jj
-	  E.subvec(jj*3, jj*3+2) = E.subvec(jj*3, jj*3+2) +
-	    Ajk * alphakk * E0.subvec(jj*3, jj*3+2) ;
-	  // field of dipole jj evaluated at kk
-	  E.subvec(kk*3, kk*3+2) = E.subvec(kk*3, kk*3+2) +
-	    Ajk.st() * alphajj * E0.subvec(kk*3, kk*3+2) ;
-	}
-    }
-  return(E);
-}
 
 
 

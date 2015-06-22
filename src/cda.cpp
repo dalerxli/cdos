@@ -123,7 +123,7 @@ arma::cx_mat diagonal_blocks(const arma::cx_colvec& Alpha,
 //
 // Polarization from local fields and polarisabilities
 //
-// Eloc is the 3NxNangles solution of the CDA in terms of local field
+// Eloc is the 3NxNangles local field
 // DiagBlocks is the 3Nx3 block-matrix of polarizabilities
 // returns a 3NxNangles complex matrix of polarization
 arma::cx_mat polarization(const arma::cx_mat& Eloc,
@@ -145,65 +145,74 @@ arma::cx_mat polarization(const arma::cx_mat& Eloc,
   return P;
 }
 
-//
-// Construct the full interaction matrix
-//
-// R is the Nx3 matrix of positions
-// kn is the incident wavenumber (scalar)
-// DiagBlocks is the 3Nx3 block-matrix of polarizabilities
-// full is an logical flag to use full/static interaction term
-arma::cx_mat interaction_matrix(const arma::mat& R, const double kn,
-				const arma::cx_mat& DiagBlocks, 
-				const bool full) {
-  
+// arma::cx_mat propagate_field(const arma::cx_mat& P, 
+// 			     const arma::cx_mat& G){
+//   const int NAngles = P.n_cols;
+//   arma::cx_mat E = P;
+//   for(jj=0; jj<Nangles; jj++){
+//     E.submat(ii*3, jj, ii*3+2, jj) = alphatmp * Eloc.submat(ii*3, jj, ii*3+2, jj);
+//   }
+// }
+
+// iterate the local field
+arma::cx_mat iterate_field(const arma::mat& R, 
+			   const double kn,
+			   const arma::cx_mat& E0, 
+			   const arma::cx_mat& DiagBlocks,
+			   const int Niter, const double tol){
+
   const int N = R.n_rows;
-  arma::cx_mat A = arma::eye<arma::cx_mat>( 3*N, 3*N );
+  const int NAngles = E0.n_cols;
 
-  // constants
-  const arma::cx_double i = arma::cx_double(0,1);
+  // tmp variables
   const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
-
-  // temporary vars
-
-  int jj=0, kk=0;
-  arma::mat rk_to_rj = arma::mat(1,3), rjkhat = arma::mat(1,3) , 
-            rjkrjk = arma::mat(3,3);
-  
+  arma::cx_mat Gjk = arma::cx_mat(3,3);
   double rjk;
-  arma::cx_mat Ajk = arma::cx_mat(3,3), alphajj = Ajk, alphakk=Ajk;
-  
-  // nested for loop over N dipoles
-  for(jj=0; jj<N; jj++)
-    {
-      alphajj =  DiagBlocks.submat(jj*3, 0, jj*3+2, 2);
-      
-      for(kk=jj+1; kk<N; kk++)
-	{
-	  alphakk =  DiagBlocks.submat(kk*3, 0, kk*3+2, 2);
+  arma::mat rk_to_rj = arma::mat(1,3);
+  arma::mat rjkhat   = arma::mat(1,3);
+  arma::mat rjkrjk   = arma::mat(3,3);  
+  int ll=0, jj=0, kk=0, iter=0;
+  double err=1e10;
+  arma::colvec cext(Nangle), tmp=cext; //extinction for convergence 
+  // starting with the first Born approximation
+  arma::cx_mat E = E0, P = E0; 
+  P = polarization(E0, DiagBlocks);
 
-	  rk_to_rj = R.row(jj) - R.row(kk) ;
-	  rjk = norm(rk_to_rj, 2);
-	  rjkhat = rk_to_rj / rjk;
-	  rjkrjk =  rjkhat.st() * rjkhat;
-	  if(full) {
-	    Ajk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +		\
-					      (i*kn*rjk - arma::cx_double(1,0)) / \
+  while(iter < Niter && err < tol){
+    // iterate over pairs of dipoles j-k
+    for(jj=0; jj<N; jj++)
+      {
+	for(kk=jj+1; kk<N; kk++)
+	  {	 
+	    rk_to_rj = R.row(jj) - R.row(kk) ;
+	    rjk = norm(rk_to_rj, 2);
+	    rjkhat = rk_to_rj / rjk;
+	    rjkrjk =  rjkhat.st() * rjkhat;
+	    // 3x3 propagator
+	    Gjk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
+					  (i*kn*rjk - arma::cx_double(1,0)) /     
 					  (rjk*rjk) * (3*rjkrjk - I3)) ;
-	    
-	  } else {	      // no retardation
-	    Ajk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
+	  
+	    // update E = G P
+	    // where P is from previous iteration
+	    E = E0;
+	    for(ll=0; ll<Nangles; ll++){
+	      // field of dipole kk evaluated at jj
+	      E.submat(jj*3, ll, jj*3+2, ll) += Gjk * P.submat(kk*3, ll, kk*3+2, ll);
+	      // field of dipole jj evaluated at kk
+	      E.submat(kk*3, ll, kk*3+2, ll) += Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
+	    }
 	  }
-	  // assign block 
-	  A.submat(jj*3,kk*3,jj*3+2,kk*3+2) = Ajk * alphakk;
-	  // symmetric block 
-	  A.submat(kk*3,jj*3,kk*3+2,jj*3+2) = Ajk.st() * alphajj;
-
-	} // end kk
-    } // end jj
-  
-  return(A);
+      }
+    // update the polarization
+    P = polarization(E, DiagBlocks);
+    cext = extinction(kn, P, E0);
+    err = max(abs((cext - tmp) / (cext + tmp)));
+    tmp = cext;
+    iter++;
+  }
+  return(E);
 }
-
 
 //
 // Calculate the extinction cross-section for multiple incident angles
