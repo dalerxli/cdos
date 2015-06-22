@@ -3,12 +3,11 @@
 
 #include <RcppArmadillo.h>
 
-arma::colvec averaging(const arma::mat& R, const arma::cx_mat& A, 
+arma::colvec averaging(const arma::mat& R, 
 		       const arma::cx_mat& DiagBlocks, 		
 		       const double kn, 
 		       const arma::mat& Angles,
 		       const arma::colvec& Weights,
-		       const bool cg, const bool born, 
-		       const int nmax, const double tol);
+		       const int Niter, const double tol);
 
 #endif

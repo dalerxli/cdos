@@ -1,6 +1,6 @@
 ## ----load,message=FALSE--------------------------------------------------
-library(cdae)
-library(rgl)
+library(cdos)
+# library(rgl)
 library(ggplot2)
 library(reshape2)
 library(plyr)
@@ -20,24 +20,23 @@ cl <- list(r = rbind(c(0, 0, 0),
                           c(30, 10, 10)))
 
 # visualise
-rgl.ellipsoids(cl$r, cl$sizes, cl$angles, col="gold")
-rgl.viewpoint( theta = 0, phi = 20, fov = 70, zoom = 1)
-rgl_annotate()
+# rgl.ellipsoids(cl$r, cl$sizes, cl$angles, col="gold")
+# rgl.viewpoint( theta = 0, phi = 20, fov = 70, zoom = 1)
+# rgl_annotate()
 
-
-
-## ----linear,echo=TRUE,tidy=FALSE,fig.path="basic-", fig.height=4---------
-
-linear <- dispersion_spectrum(cl, gold)
-ggplot(linear, aes(wavelength, value, linetype=type)) +
-  facet_wrap(~polarisation) + geom_path()
 
 
 ## ----oa,echo=TRUE,tidy=FALSE,fig.path="basic-",fig.width=8---------------
-circular <- circular_dichroism_spectrum(cl, gold)
+circular <- circular_dichroism_spectrum(cl, gold, Niter=10, tol=1e-10)
+circular2 <- cdae::circular_dichroism_spectrum(cl, gold)
+# circular3 <- cda::circular_dichroism_spectrum(cl, gold)
 
 ggplot(circular, aes(wavelength, value, color=variable)) + 
-  facet_grid(type~., scales="free") + geom_line()
+  facet_grid(type~., scales="free") + 
+  geom_line() +
+  geom_line(data=circular2,linetype=2)+
+  # geom_line(data=circular3,linetype=3) +
+  theme()
 
 
 

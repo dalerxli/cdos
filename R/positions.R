@@ -197,12 +197,6 @@ cluster_helix <- function(N=5, R0=12, pitch=15,
                              angles=c("helix", "random", "fixed"),
                              seed=123, ...){
   
-  nodes <- randtoolbox::halton(Nquad, dim = 2, normal=FALSE, init=init)
-  
-  phi <- nodes[,1]*2*pi
-  psi <- asin(2*nodes[,2] - 1)
-  grid <- data.frame(phi=phi, theta=pi/2, psi=psi)
-  
  hel <- helix(R0=R0, pitch=pitch, N=N, delta=delta, delta0=delta0, right=right)
  nr <- NROW(hel$angles)
  r <- hel$positions

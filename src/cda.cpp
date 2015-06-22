@@ -123,43 +123,72 @@ arma::cx_mat diagonal_blocks(const arma::cx_colvec& Alpha,
 //
 // Polarization from local fields and polarisabilities
 //
-// Eloc is the 3NxNangles local field
+// E is the 3NxNangles local field
 // DiagBlocks is the 3Nx3 block-matrix of polarizabilities
 // returns a 3NxNangles complex matrix of polarization
-arma::cx_mat polarization(const arma::cx_mat& Eloc,
+arma::cx_mat polarization(const arma::cx_mat& E,
 			  const arma::cx_mat& DiagBlocks) {
   
-  const int N = DiagBlocks.n_rows / 3, Nangles=Eloc.n_cols;
-  arma::cx_mat P = Eloc, alphatmp(3,3);
+  const int N = DiagBlocks.n_rows / 3, Nangles=E.n_cols;
+  arma::cx_mat P = E, alphatmp(3,3);
   int ii=0, jj=0;
 
   // loop over N particles
   for(ii=0; ii<N; ii++){
     alphatmp =  DiagBlocks.submat(ii*3, 0, ii*3+2, 2);
-    // loop over incident angles (columns of Eloc)
+    // loop over incident angles (columns of E)
     for(jj=0; jj<Nangles; jj++){
-      P.submat(ii*3, jj, ii*3+2, jj) = alphatmp * Eloc.submat(ii*3, jj, ii*3+2, jj);
+      P.submat(ii*3, jj, ii*3+2, jj) = alphatmp * E.submat(ii*3, jj, ii*3+2, jj);
     }
   } 
   
   return P;
 }
 
-// arma::cx_mat propagate_field(const arma::cx_mat& P, 
-// 			     const arma::cx_mat& G){
-//   const int NAngles = P.n_cols;
-//   arma::cx_mat E = P;
-//   for(jj=0; jj<Nangles; jj++){
-//     E.submat(ii*3, jj, ii*3+2, jj) = alphatmp * Eloc.submat(ii*3, jj, ii*3+2, jj);
-//   }
-// }
 
-// iterate the local field
-arma::cx_mat iterate_field(const arma::mat& R, 
+arma::colvec convergence(const arma::mat& R, 
+			 const double kn,
+			 const arma::cx_mat& E0,
+			 const arma::cx_mat& DiagBlocks,
+			 const int Niter, const double tol){
+  const int N = R.n_rows;
+  const int NAngles = E0.n_cols;
+
+  // tmp variables
+  int iter=0;
+  double rel_error=1e10;
+  arma::colvec cext(NAngles), tmp=cext; // store extinction for convergence test
+  // starting with the first Born approximation
+  arma::cx_mat E = E0, P = E0; 
+  P = polarization(E0, DiagBlocks);
+  tmp = extinction(kn, P, E0);
+
+  while((iter < Niter) && (rel_error > tol)){
+    cext = iterate_field(R, kn, E0, DiagBlocks, E, P);
+    // Note E and P have been updated
+    rel_error = max(abs((cext - tmp) / (cext + tmp)));
+    tmp = cext;
+    iter++;
+  }
+  return(cext);
+}
+
+// iterate the local field and polarisation
+//
+// R is the Nx3 matrix of positions
+// kn: scalar wavenumber 
+// E0 is the 3NxNangles incident field
+// DiagBlocks is the 3Nx3 block-matrix of polarizabilities
+// E is the 3NxNangles local field
+// P: complex 3NxNangles matrix of polarization
+// return current extinction cross-sections (for convergence check)
+// side-effect: update P and E
+arma::colvec iterate_field(const arma::mat& R, 
 			   const double kn,
-			   const arma::cx_mat& E0, 
-			   const arma::cx_mat& DiagBlocks,
-			   const int Niter, const double tol){
+			   const arma::cx_mat& E0,
+			   const arma::cx_mat& DiagBlocks, 
+			   arma::cx_mat& E, 
+			   arma::cx_mat& P){
 
   const int N = R.n_rows;
   const int NAngles = E0.n_cols;
@@ -172,49 +201,39 @@ arma::cx_mat iterate_field(const arma::mat& R,
   arma::mat rk_to_rj = arma::mat(1,3);
   arma::mat rjkhat   = arma::mat(1,3);
   arma::mat rjkrjk   = arma::mat(3,3);  
-  int ll=0, jj=0, kk=0, iter=0;
-  double err=1e10;
+  int ll=0, jj=0, kk=0;
+  arma::colvec cext(NAngles); // extinction for convergence test
 
-  arma::colvec cext(NAngles), tmp=cext; // store extinction for convergence test
-  // starting with the first Born approximation
-  arma::cx_mat E = E0, P = E0; 
-  P = polarization(E0, DiagBlocks);
-
-  while(iter < Niter && err < tol){
-    // iterate over pairs of dipoles j-k
-    E = E0; // starting point: incident field
-    // now, add all dipole fields with previous P source
-    for(jj=0; jj<N; jj++)
-      {
-	for(kk=jj+1; kk<N; kk++)
-	  {	 
-	    rk_to_rj = R.row(jj) - R.row(kk) ;
-	    rjk = norm(rk_to_rj, 2);
-	    rjkhat = rk_to_rj / rjk;
-	    rjkrjk =  rjkhat.st() * rjkhat;
-	    // 3x3 propagator
-	    Gjk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
-					  (i*kn*rjk - arma::cx_double(1,0)) /     
-					  (rjk*rjk) * (3*rjkrjk - I3)) ;
+  E = E0; // incident field + 
+          // all pairwise dipole fields
+  for(jj=0; jj<N; jj++)
+    {
+      for(kk=jj+1; kk<N; kk++)
+	{	 
+	  rk_to_rj = R.row(jj) - R.row(kk) ;
+	  rjk = norm(rk_to_rj, 2);
+	  rjkhat = rk_to_rj / rjk;
+	  rjkrjk =  rjkhat.st() * rjkhat;
+	  // 3x3 propagator
+	  Gjk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
+					(i*kn*rjk - arma::cx_double(1,0)) /     
+					(rjk*rjk) * (3*rjkrjk - I3)) ;
 	  
-	    // update E = G P
-	    // where P is from previous iteration
-	    for(ll=0; ll<NAngles; ll++){
-	      // field of dipole kk evaluated at jj
-	      E.submat(jj*3, ll, jj*3+2, ll) += Gjk * P.submat(kk*3, ll, kk*3+2, ll);
-	      // field of dipole jj evaluated at kk
-	      E.submat(kk*3, ll, kk*3+2, ll) += Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
-	    }
+	  // update E = Einc + GP
+	  // where P is from a previous iteration
+	  for(ll=0; ll<NAngles; ll++){
+	    // field of dipole kk evaluated at jj
+	    E.submat(jj*3, ll, jj*3+2, ll) += Gjk * P.submat(kk*3, ll, kk*3+2, ll);
+	    // field of dipole jj evaluated at kk
+	    E.submat(kk*3, ll, kk*3+2, ll) += Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
 	  }
-      }
-    // update the polarization
-    P = polarization(E, DiagBlocks);
-    cext = extinction(kn, P, E0);
-    err = max(abs((cext - tmp) / (cext + tmp)));
-    tmp = cext;
-    iter++;
-  }
-  return(E);
+	}
+    }
+  // update the polarization
+  P = polarization(E, DiagBlocks);
+  cext = extinction(kn, P, E0);
+
+  return(cext);
 }
 
 //
@@ -258,80 +277,34 @@ arma::colvec extinction(const double kn, const arma::cx_mat& P,
 
 }
 
-arma::cx_mat interaction_matrix(const arma::mat& R, const double kn,
-				const arma::cx_mat& DiagBlocks, 
-				const bool full) {
-  
-  const int N = R.n_rows;
-  arma::cx_mat A = arma::eye<arma::cx_mat>( 3*N, 3*N );
-
-  // constants
-  const arma::cx_double i = arma::cx_double(0,1);
-  const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
-
-  // temporary vars
-
-  int jj=0, kk=0;
-  arma::mat rk_to_rj = arma::mat(1,3), rjkhat = arma::mat(1,3) , 
-            rjkrjk = arma::mat(3,3);
-  
-  double rjk;
-  arma::cx_mat Ajk = arma::cx_mat(3,3), alphajj = Ajk, alphakk=Ajk;
-  
-  // nested for loop over N dipoles
-  for(jj=0; jj<N; jj++)
-    {
-      alphajj =  DiagBlocks.submat(jj*3, 0, jj*3+2, 2);
-      
-      for(kk=jj+1; kk<N; kk++)
-	{
-	  alphakk =  DiagBlocks.submat(kk*3, 0, kk*3+2, 2);
-
-	  rk_to_rj = R.row(jj) - R.row(kk) ;
-	  rjk = norm(rk_to_rj, 2);
-	  rjkhat = rk_to_rj / rjk;
-	  rjkrjk =  rjkhat.st() * rjkhat;
-	  if(full) {
-	    Ajk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +		\
-					      (i*kn*rjk - arma::cx_double(1,0)) / \
-					  (rjk*rjk) * (3*rjkrjk - I3)) ;
-	    
-	  } else {	      // no retardation
-	    Ajk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
-	  }
-	  // assign block 
-	  A.submat(jj*3,kk*3,jj*3+2,kk*3+2) = Ajk * alphakk;
-	  // symmetric block 
-	  A.submat(kk*3,jj*3,kk*3+2,jj*3+2) = Ajk.st() * alphajj;
-
-	} // end kk
-    } // end jj
-  
-  return(A);
-}
 
 
 RCPP_MODULE(cda){
-       Rcpp::function( "cg_solve", &cg_solve, 
-		       "Conjugate gradient solver" ) ;
-       Rcpp::function( "euler", &euler, 
-		       "Euler rotation matrix" ) ;
-       Rcpp::function( "axis_rotation", &axis_rotation, 
-		       "Rotation matrix about a cartesian axis" ) ;
-       Rcpp::function( "extinction", &extinction, 
-	 "Calculate the extinction cross-section for multiple incident angles" ) ;
-       Rcpp::function( "absorption", &absorption, 
-         "Calculate the absorption cross-section for multiple incident angles" ) ;
 
-       Rcpp::function( "iterate_field", &iterate_field, 
-		       "Order-of-scattering solution for the fields" ) ;
+  // user-level
+  Rcpp::function( "extinction", &extinction, 
+		  "Calculate the extinction cross-section for multiple incident angles" ) ;
+  Rcpp::function( "absorption", &absorption, 
+		  "Calculate the absorption cross-section for multiple incident angles" ) ;
 
-       Rcpp::function( "interaction_matrix", &interaction_matrix, 
-		       "Construct the full interaction matrix" ) ;
-       Rcpp::function( "polarization", &polarization, 
-		       "Compute polarisation from solved internal field" ) ;
-       Rcpp::function( "incident_field", &incident_field, 
-		       "Calculate the incident field at each dipole location" ) ;
-       Rcpp::function( "multiple_incident_field", &multiple_incident_field,
-	    "Incident field along multiple axes" ) ;
+  // utils
+  Rcpp::function( "euler", &euler, 
+		  "Euler rotation matrix" ) ;
+  Rcpp::function( "axis_rotation", &axis_rotation, 
+		  "Rotation matrix about a cartesian axis" ) ;
+
+  // low-level
+  Rcpp::function( "convergence", &convergence, 
+		  "Iterating order-of-scattering solution" ) ;
+  Rcpp::function( "iterate_field", &iterate_field, 
+		  "Order-of-scattering solution for the fields" ) ;
+  Rcpp::function( "diagonal_blocks", &diagonal_blocks, 
+		  "3x3 polarizability blocks" ) ;
+  Rcpp::function( "polarization", &polarization, 
+		  "Compute polarisation from solved internal field" ) ;
+  Rcpp::function( "incident_field", &incident_field, 
+		  "Calculate the incident field at each dipole location" ) ;
+  Rcpp::function( "multiple_incident_field", &multiple_incident_field,
+		  "Incident field along multiple axes" ) ;
+
 }

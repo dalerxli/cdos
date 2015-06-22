@@ -94,8 +94,8 @@ integration_points <- function(method=c("cheap", "QMC", "GL", "grid"),
 circular_dichroism_spectrum <- function(cluster, material, medium=1.33, Nquad=100, 
                                         averaging = c("GL","QMC","grid", "cheap"),
                                         iterative=FALSE, precision=1e-3, Qmax=1e4, 
-                                        dN=Nquad, cg = FALSE, born=FALSE, 
-                                        nmax = 30, tol=1e-4,
+                                        dN=Nquad, 
+                                        Niter = 30, tol=1e-4,
                                         full=TRUE, progress=FALSE, verbose=TRUE,
                                         result.matrix=FALSE){
 
@@ -115,7 +115,7 @@ circular_dichroism_spectrum <- function(cluster, material, medium=1.33, Nquad=10
   results <- cd$average_spectrum(kn, cluster$r, Alpha, cluster$angles, 
                                  as.matrix(quadrature$angles), 
                                  quadrature$weights,
-                                 full, cg, born, nmax, tol, progress)
+                                 full, Niter, tol, progress)
   
   ## iterative improvement: add new points until convergence or Qmax reached
   if(iterative && averaging == "QMC"){
@@ -127,10 +127,11 @@ circular_dichroism_spectrum <- function(cluster, material, medium=1.33, Nquad=10
       Ntot <- Ntot + dN
       quadrature <- integration_points(averaging, dN, FALSE)
       ## xsec at new points
-      newres <-  cd$average_spectrum(kn, Alpha, cluster$r, cluster$angles, 
+      
+      newres <- cd$average_spectrum(kn, cluster$r, Alpha, cluster$angles, 
                                      as.matrix(quadrature$angles), 
                                      quadrature$weights,
-                                     full, cg, nmax, tol, progress)
+                                     full, Niter, tol, progress)
       
       ## average of the two results
       results <- (oldN * results + dN * newres) / (oldN + dN)
