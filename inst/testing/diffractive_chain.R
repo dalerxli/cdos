@@ -1,6 +1,6 @@
 
 ## ----load,message=FALSE--------------------------------------------------
-library(cda)
+library(cdos)
 library(rgl)
 library(ggplot2)
 library(reshape2)

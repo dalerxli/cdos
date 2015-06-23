@@ -1,6 +1,6 @@
 
 ## ----load,message=FALSE--------------------------------------------------
-library(cda)
+library(cdos)
 library(rgl)
 library(ggplot2)
 library(reshape2)
@@ -23,10 +23,10 @@ dimer <- function(d=100, ...){
   angles <- matrix(0, ncol=3, nrow=2)
 
   cl <- list(r=r, sizes=sizes, angles=angles)
-  dispersion_spectrum(cl, material = gold)
+  dispersion_spectrum(cl, material = gold, Niter=30)
   
 }
-params <- data.frame(d=seq(50, 500, by=10))
+params <- data.frame(d=seq(80, 500, by=10))
 comparison <- mdply(params, dimer)
 
 ## compare with the single-particle response

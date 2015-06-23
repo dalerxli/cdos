@@ -1,6 +1,6 @@
 
 ## ----load,message=FALSE, echo=1:6----------------------------------------
-require(cdae)
+require(cdos)
 require(ggplot2)
 library(reshape2)
 library(plyr)

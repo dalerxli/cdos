@@ -1,6 +1,6 @@
 
 ## ----load,message=FALSE--------------------------------------------------
-library(cda)
+library(cdos)
 library(rgl)
 library(reshape2)
 library(plyr)
