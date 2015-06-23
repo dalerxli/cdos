@@ -72,6 +72,7 @@ arma::colvec averaging(const arma::mat& R,
     // -----------------------
     iter=0;
     rel_error=1e10;
+    xsec = 0*tmp;
     E0 = incident_field(RCP, kvec, R, Angles);
     E=E0;
     P = polarization(E0, DiagBlocks);

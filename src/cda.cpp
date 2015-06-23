@@ -164,7 +164,9 @@ arma::colvec convergence(const arma::mat& R,
   tmp = extinction(kn, P, E0);
 
   while((iter < Niter) && (rel_error > tol)){
+    //std::cout << P << std::endl;
     cext = iterate_field(R, kn, E0, DiagBlocks, E, P);
+    //std::cout << cext << std::endl;
     // Note E and P have been updated
     rel_error = max(abs((cext - tmp) / (cext + tmp)));
     tmp = cext;
@@ -223,9 +225,9 @@ arma::colvec iterate_field(const arma::mat& R,
 	  // where P is from a previous iteration
 	  for(ll=0; ll<NAngles; ll++){
 	    // field of dipole kk evaluated at jj
-	    E.submat(jj*3, ll, jj*3+2, ll) += Gjk * P.submat(kk*3, ll, kk*3+2, ll);
+	    E.submat(jj*3, ll, jj*3+2, ll) -= Gjk * P.submat(kk*3, ll, kk*3+2, ll);
 	    // field of dipole jj evaluated at kk
-	    E.submat(kk*3, ll, kk*3+2, ll) += Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
+	    E.submat(kk*3, ll, kk*3+2, ll) -= Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
 	  }
 	}
     }
