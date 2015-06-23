@@ -27,7 +27,7 @@ cl <- list(r = rbind(c(0, 0, 0),
 
 
 ## ----oa,echo=TRUE,tidy=FALSE,fig.path="basic-",fig.width=8---------------
-circular <- circular_dichroism_spectrum(cl, gold, Niter=10, tol=1e-10)
+circular <- circular_dichroism_spectrum(cl, gold, Niter=1, tol=1e-10)
 circular2 <- cdae::circular_dichroism_spectrum(cl, gold)
 # circular3 <- cda::circular_dichroism_spectrum(cl, gold)
 

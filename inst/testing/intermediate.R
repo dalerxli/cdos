@@ -22,22 +22,20 @@ Ei <- cda$incident_field(E0L, k=kn*k0, r=cl$r, Angles)
 
 E <- solve(A, Ei)
 P <- cdae::cda$polarization(E, DiagBlocks)
-# [,1]                        [,2]
-# [,1]                        [,2]
-# [1,]     0.00+    0.00i  3.459052e+04-2.369239e+04i
-# [2,] 40691.23-15981.99i -3.427800e-13+2.654874e-12i
-# [3,] 15981.99+40691.23i -4.335738e+04-5.598022e+03i
-# [4,]     0.00+    0.00i  4.097692e+03+4.172580e+04i
-# [5,] 40691.23-15981.99i -2.161348e-12-1.579376e-12i
-# [6,] 15981.99+40691.23i  2.579316e+04-3.529749e+04i
+
 
 P0 <- cdae::cda$polarization(Ei, DiagBlocks)
+P1 <- cda$iterate_test(cl$r, kn, Ei, DiagBlocks,P0)
+P2 <- cda$iterate_test(cl$r, kn, Ei, DiagBlocks,P1)
+P3 <- cda$iterate_test(cl$r, kn, Ei, DiagBlocks,P2)
+cda$extinction(kn, P0, Ei)
+cda$extinction(kn, P1, Ei)
+cda$extinction(kn, P2, Ei)
 
-test <- cda$iterate_test(cl$r, kn, Ei, DiagBlocks,P0)
 
 
 tol <- 1e-10
-Niter <- 3
+Niter <- 5
 test <- cda$convergence(cl$r, kn, Ei, DiagBlocks, Niter, tol)
 
 cext <- cda$extinction(kn, P, Ei)

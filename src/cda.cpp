@@ -25,7 +25,7 @@ arma::cx_mat iterate_test(const arma::mat& R,
 
   // tmp variables
   const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
-  const arma::cx_double i = arma::cx_double(1,0);
+  const arma::cx_double i = arma::cx_double(0,1);
   arma::cx_mat Gjk = arma::cx_mat(3,3);
   double rjk;
   arma::mat rk_to_rj = arma::mat(1,3);
@@ -49,16 +49,15 @@ arma::cx_mat iterate_test(const arma::mat& R,
 	  rjkhat = rk_to_rj / rjk;
 	  rjkrjk =  rjkhat.st() * rjkhat;
 	  // 3x3 propagator
-	  //	  Gjk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
-	  //				(i*kn*rjk - arma::cx_double(1,0)) /     
-	  //				(rjk*rjk) * (3*rjkrjk - I3)) ;
-	  Gjk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
+	  Gjk = exp(i*kn*rjk) / rjk * (kn*kn*(rjkrjk - I3) +
+	  			       (i*kn*rjk - arma::cx_double(1,0))*(3*rjkrjk - I3)/(rjk*rjk) ) ;
+	  //Gjk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
 	  // update E = Einc + GP
 	  // where P is from a previous iteration
 	  for(ll=0; ll<NAngles; ll++){
 	    // field of dipole kk evaluated at jj
 	    tmp = Gjk * P.submat(kk*3, ll, kk*3+2, ll);
-	    std::cout << Gjk << std::endl;
+	    // std::cout << tmp << std::endl;
 	    // std::cout << E0.submat(jj*3, ll, jj*3+2, ll) << std::endl;
 	    E.submat(jj*3, ll, jj*3+2, ll) += tmp;
 	    // field of dipole jj evaluated at kk
@@ -70,7 +69,7 @@ arma::cx_mat iterate_test(const arma::mat& R,
   // update the polarization
   P = polarization(E, DiagBlocks);
   cext = extinction(kn, P, E0);
-
+  //std::cout << "cext" << cext << std::endl;
   return(P);
 }
 
@@ -226,9 +225,7 @@ arma::colvec convergence(const arma::mat& R,
   tmp = extinction(kn, P, E0);
 
   while((iter < Niter) && (rel_error > tol)){
-    // std::cout << P << std::endl;
     cext = iterate_field(R, kn, E0, DiagBlocks, E, P);
-    //std::cout << cext << std::endl;
     // Note E and P have been updated
     rel_error = max(abs((cext - tmp) / (cext + tmp)));
     tmp = cext;
@@ -259,7 +256,7 @@ arma::colvec iterate_field(const arma::mat& R,
 
   // tmp variables
   const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
-  const arma::cx_double i = arma::cx_double(1,0);
+  const arma::cx_double i = arma::cx_double(0,1);
   arma::cx_mat Gjk = arma::cx_mat(3,3);
   double rjk;
   arma::mat rk_to_rj = arma::mat(1,3);
@@ -293,7 +290,7 @@ arma::colvec iterate_field(const arma::mat& R,
 	  for(ll=0; ll<NAngles; ll++){
 	    // field of dipole kk evaluated at jj
 	    tmp = P.submat(kk*3, ll, kk*3+2, ll);
-	    std::cout << tmp << std::endl;
+	    //std::cout << tmp << std::endl;
 	    E.submat(jj*3, ll, jj*3+2, ll) -= Gjk * tmp;
 	    // field of dipole jj evaluated at kk
 	    tmp = P.submat(jj*3, ll, jj*3+2, ll);
