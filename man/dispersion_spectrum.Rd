@@ -5,8 +5,8 @@
 \title{dispersion_spectrum}
 \usage{
 dispersion_spectrum(cluster, material, medium = 1.33, angles = 0,
-  axes = "z", polarisation = c("linear", "circular"), cg = FALSE,
-  born = FALSE, nmax = 30, tol = 1e-04, progress = FALSE)
+  axes = "z", polarisation = c("linear", "circular"), Niter = 10,
+  tol = 1e-05, progress = FALSE)
 }
 \arguments{
 \item{cluster}{list describing a cluster}
@@ -21,13 +21,9 @@ dispersion_spectrum(cluster, material, medium = 1.33, angles = 0,
 
 \item{polarisation}{linear or circular polarisation}
 
-\item{cg}{logical, use conjugate gradient solver}
+\item{Niter}{integer maximum order of scattering}
 
-\item{born}{logical, use first Born approx as cg guess}
-
-\item{nmax}{integer termination of conjugate gradient solver}
-
-\item{tol}{double, tolerance of conjugate gradient solver}
+\item{tol}{double, tolerance of solution}
 
 \item{progress}{logical, display progress bar}
 }

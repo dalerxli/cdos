@@ -6,9 +6,9 @@
 \usage{
 circular_dichroism_spectrum(cluster, material, medium = 1.33, Nquad = 100,
   averaging = c("GL", "QMC", "grid", "cheap"), iterative = FALSE,
-  precision = 0.001, Qmax = 10000, dN = Nquad, cg = FALSE,
-  born = FALSE, nmax = 30, tol = 1e-04, full = TRUE, progress = FALSE,
-  verbose = TRUE, result.matrix = FALSE)
+  precision = 0.001, Qmax = 10000, dN = Nquad, Niter = 30,
+  tol = 1e-04, full = TRUE, progress = FALSE, verbose = TRUE,
+  result.matrix = FALSE)
 }
 \arguments{
 \item{cluster}{cluster (list)}
@@ -29,12 +29,6 @@ circular_dichroism_spectrum(cluster, material, medium = 1.33, Nquad = 100,
 
 \item{dN}{iterative increase in N (QMC only)}
 
-\item{cg}{logical use conjugate gradient solver}
-
-\item{born}{logical first Born approx as cg guess}
-
-\item{nmax}{integer termination of conjugate gradient solver}
-
 \item{tol}{double, tolerance of conjugate gradient solver}
 
 \item{full}{logical use full (retarded) dipolar field}
@@ -44,6 +38,12 @@ circular_dichroism_spectrum(cluster, material, medium = 1.33, Nquad = 100,
 \item{verbose}{display messages}
 
 \item{result.matrix}{logical return the results as a matrix}
+
+\item{cg}{logical use conjugate gradient solver}
+
+\item{born}{logical first Born approx as cg guess}
+
+\item{nmax}{integer termination of conjugate gradient solver}
 }
 \description{
 Simulate a CD spectrum

@@ -3,13 +3,13 @@
 ##' Solves the electromagnetic problem of coupled-dipoles (scattering and absorption by a cluster of subwavelength particles in arbitrary 3D configuration) by direct inversion of the interaction matrix. Functions are provided for linear polarisation with varying angle of incidence, as well as circular polarisation with angular averaging (optical activity). Retardation is included in the interaction.
 ##'
 ##' 
-##' @name cda-package
+##' @name cdos-package
 ##' @docType package
-##' @useDynLib cdae
+##' @useDynLib cdos
 ##' @import dielectric
 ##' @import Rcpp
 ##' @import methods
-##' @title cdae
+##' @title cdos
 ##' @keywords package
 ##' @author baptiste Auguie
 ##' @references
@@ -34,20 +34,6 @@
 ##' B. Auguie, W.L. Barnes. Collective resonances in gold nanoparticle arrays. Physical Review Letters (2008)
 ##' @keywords packagelibrary
 ##' 
-NULL
-
-##' Rcpp module: array
-##' 
-##' Exposes a C++ calculation of the array factor.
-##' @name array
-##' @docType data
-##' @export
-##' @details
-##' \itemize{
-##'  \item{array_factor}{ Truncated lattice sum for a finite 2D square array}
-##' }
-##' @examples
-##' show( array )
 NULL
 
 ##' Rcpp module: cd

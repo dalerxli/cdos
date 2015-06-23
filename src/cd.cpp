@@ -2,6 +2,8 @@
 #include "cda.h"
 #include "cd.h"
 #include "cg.h"
+#include "incident.h"
+#include "cross_sections.h"
 
 #include <RcppArmadillo.h>
 #include <iostream>
@@ -43,7 +45,7 @@ arma::colvec averaging(const arma::mat& R,
     // tmp variables
     int iter=0;
     double rel_error=1e10;
-    arma::colvec xsec = zeros<arma::colvec>(NAngles), tmp=xsec; // tmp cross-sections
+    arma::colvec xsec = zeros<arma::colvec>(NAngles), tmp=xsec; 
 
     // -----------------------
     // left polarisation

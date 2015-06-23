@@ -8,7 +8,7 @@ library(plyr)
 ## ----cluster, rgl=TRUE,echo=-12,tidy=FALSE,fig.width=3,fig.height=3,fig.path="basic-"----
 
 # dielectric function
-wvl <- seq(400, 900)
+wvl <- seq(400, 900, length=100)
 gold <- epsAu(wvl)
 
 # define a cluster of particles
@@ -19,6 +19,7 @@ cl <- list(r = rbind(c(0, 0, 0),
             sizes = rbind(c(30, 10, 10),
                           c(30, 10, 10)))
 
+# cl <- cluster_helix(10)
 # visualise
 # rgl.ellipsoids(cl$r, cl$sizes, cl$angles, col="gold")
 # rgl.viewpoint( theta = 0, phi = 20, fov = 70, zoom = 1)
@@ -27,7 +28,7 @@ cl <- list(r = rbind(c(0, 0, 0),
 
 
 ## ----oa,echo=TRUE,tidy=FALSE,fig.path="basic-",fig.width=8---------------
-circular <- circular_dichroism_spectrum(cl, gold, Niter=1, tol=1e-10)
+circular <- circular_dichroism_spectrum(cl, gold, Niter=10, tol=1e-10)
 circular2 <- cdae::circular_dichroism_spectrum(cl, gold)
 # circular3 <- cda::circular_dichroism_spectrum(cl, gold)
 
