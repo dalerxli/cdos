@@ -12,6 +12,69 @@ using namespace Rcpp ;
 using namespace RcppArmadillo ;
 using namespace std;
 
+
+
+arma::cx_mat iterate_test(const arma::mat& R, 
+			   const double kn,
+			   const arma::cx_mat& E0,
+			  const arma::cx_mat& DiagBlocks,
+			  arma::cx_mat& P){
+
+  const int N = R.n_rows;
+  const int NAngles = E0.n_cols;
+
+  // tmp variables
+  const arma::cx_mat I3 = arma::eye<arma::cx_mat>( 3, 3 );
+  const arma::cx_double i = arma::cx_double(1,0);
+  arma::cx_mat Gjk = arma::cx_mat(3,3);
+  double rjk;
+  arma::mat rk_to_rj = arma::mat(1,3);
+  arma::mat rjkhat   = arma::mat(1,3);
+  arma::mat rjkrjk   = arma::mat(3,3);  
+  int ll=0, jj=0, kk=0;
+  arma::colvec cext(NAngles); // extinction for convergence test
+  arma::cx_vec tmp(3);
+  arma::cx_mat E = E0;
+  for(jj=0; jj<N; jj++)
+    {
+      // std::cout << "loop1:"<< jj << std::endl;
+      for(kk=jj+1; kk<N; kk++)
+	{
+	  //std::cout << "loop2:"<< kk << std::endl;
+      // 
+      //	  std::cout << "jj:"<< jj << std::endl;
+      //	  std::cout << "kk:"<< kk << std::endl;
+	  rk_to_rj = R.row(jj) - R.row(kk) ;
+	  rjk = norm(rk_to_rj, 2);
+	  rjkhat = rk_to_rj / rjk;
+	  rjkrjk =  rjkhat.st() * rjkhat;
+	  // 3x3 propagator
+	  //	  Gjk = exp(i*kn*rjk) / rjk *  (kn*kn*(rjkrjk - I3) +
+	  //				(i*kn*rjk - arma::cx_double(1,0)) /     
+	  //				(rjk*rjk) * (3*rjkrjk - I3)) ;
+	  Gjk = (I3 - 3*rjkrjk)/ (rjk*rjk*rjk)  ;
+	  // update E = Einc + GP
+	  // where P is from a previous iteration
+	  for(ll=0; ll<NAngles; ll++){
+	    // field of dipole kk evaluated at jj
+	    tmp = Gjk * P.submat(kk*3, ll, kk*3+2, ll);
+	    std::cout << Gjk << std::endl;
+	    // std::cout << E0.submat(jj*3, ll, jj*3+2, ll) << std::endl;
+	    E.submat(jj*3, ll, jj*3+2, ll) += tmp;
+	    // field of dipole jj evaluated at kk
+	    tmp =  Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
+	    E.submat(kk*3, ll, kk*3+2, ll) +=tmp;
+	  }
+	}
+    }
+  // update the polarization
+  P = polarization(E, DiagBlocks);
+  cext = extinction(kn, P, E0);
+
+  return(P);
+}
+
+
 //
 // Calculate the incident field at each dipole location 
 //
@@ -151,7 +214,6 @@ arma::colvec convergence(const arma::mat& R,
 			 const arma::cx_mat& E0,
 			 const arma::cx_mat& DiagBlocks,
 			 const int Niter, const double tol){
-  const int N = R.n_rows;
   const int NAngles = E0.n_cols;
 
   // tmp variables
@@ -164,7 +226,7 @@ arma::colvec convergence(const arma::mat& R,
   tmp = extinction(kn, P, E0);
 
   while((iter < Niter) && (rel_error > tol)){
-    //std::cout << P << std::endl;
+    // std::cout << P << std::endl;
     cext = iterate_field(R, kn, E0, DiagBlocks, E, P);
     //std::cout << cext << std::endl;
     // Note E and P have been updated
@@ -205,13 +267,18 @@ arma::colvec iterate_field(const arma::mat& R,
   arma::mat rjkrjk   = arma::mat(3,3);  
   int ll=0, jj=0, kk=0;
   arma::colvec cext(NAngles); // extinction for convergence test
-
+  arma::cx_vec tmp(3);
   E = E0; // incident field + 
           // all pairwise dipole fields
   for(jj=0; jj<N; jj++)
     {
+      // std::cout << "loop1:"<< jj << std::endl;
       for(kk=jj+1; kk<N; kk++)
-	{	 
+	{
+	  //std::cout << "loop2:"<< kk << std::endl;
+      // 
+      //	  std::cout << "jj:"<< jj << std::endl;
+      //	  std::cout << "kk:"<< kk << std::endl;
 	  rk_to_rj = R.row(jj) - R.row(kk) ;
 	  rjk = norm(rk_to_rj, 2);
 	  rjkhat = rk_to_rj / rjk;
@@ -225,9 +292,12 @@ arma::colvec iterate_field(const arma::mat& R,
 	  // where P is from a previous iteration
 	  for(ll=0; ll<NAngles; ll++){
 	    // field of dipole kk evaluated at jj
-	    E.submat(jj*3, ll, jj*3+2, ll) -= Gjk * P.submat(kk*3, ll, kk*3+2, ll);
+	    tmp = P.submat(kk*3, ll, kk*3+2, ll);
+	    std::cout << tmp << std::endl;
+	    E.submat(jj*3, ll, jj*3+2, ll) -= Gjk * tmp;
 	    // field of dipole jj evaluated at kk
-	    E.submat(kk*3, ll, kk*3+2, ll) -= Gjk.st() * P.submat(jj*3, ll, jj*3+2, ll);
+	    tmp = P.submat(jj*3, ll, jj*3+2, ll);
+	    E.submat(kk*3, ll, kk*3+2, ll) -= Gjk.st() * tmp;
 	  }
 	}
     }
@@ -283,6 +353,9 @@ arma::colvec extinction(const double kn, const arma::cx_mat& P,
 
 RCPP_MODULE(cda){
 
+  Rcpp::function( "iterate_test", &iterate_test, 
+		  "Order-of-scattering solution for the fields" ) ;
+  
   // user-level
   Rcpp::function( "extinction", &extinction, 
 		  "Calculate the extinction cross-section for multiple incident angles" ) ;
